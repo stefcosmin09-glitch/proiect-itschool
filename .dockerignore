@@ -1,0 +1,29 @@
+# Build context complet -> imaginea ar contine istoricul git si proiectul.
+.git
+.gitignore
+.github
+
+# Dependenze locale - se reinstaleaza in imagine
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.coverage
+htmlcov
+
+# Nu au loc in imaginea de runtime
+charts
+Jenkinsfile
+README.md
+*.md
+tests
+.vscode
+.idea
+
+# Secrets
+.env
+.env.*
+kubeconfig
+kubeconfig.*
+*.kubeconfig

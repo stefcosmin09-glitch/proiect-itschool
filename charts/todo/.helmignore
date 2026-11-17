@@ -1,0 +1,10 @@
+# Patterns ignorate la `helm package`.
+.DS_Store
+.git/
+.gitignore
+*.tmproj
+.vscode/
+.idea/
+*.swp
+*.bak
+*.tgz

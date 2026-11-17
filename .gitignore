@@ -1,2 +1,28 @@
-.venv/
+# Python
 __pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Secrets / kubeconfig - NU trebuie sa ajunga in repo
+.env
+.env.*
+*.local
+kubeconfig
+kubeconfig.*
+*.kubeconfig
+*.pem
+*.key
+!charts/**/*.yaml
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

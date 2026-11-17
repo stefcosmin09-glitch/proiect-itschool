@@ -1,0 +1,89 @@
+{{- $fullName := include "todo.fullname" . -}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ $fullName }}-smoke-test"
+  labels:
+    {{- include "todo.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    {{- toYaml .Values.podSecurityContext | nindent 4 }}
+  # Ruleaza in imaginea aplicatiei, ca testul sa verifice si artefactul
+  # deployat, nu doar reteaua.
+  containers:
+    - name: smoke
+      image: {{ include "todo.image" . | quote }}
+      imagePullPolicy: {{ .Values.image.pullPolicy }}
+      securityContext:
+        {{- toYaml .Values.securityContext | nindent 8 }}
+      env:
+        - name: BASE_URL
+          value: "http://{{ $fullName }}:{{ .Values.service.port }}"
+      command:
+        - python
+        - -c
+        - |
+          import json, os, sys, urllib.request
+
+          base = os.environ["BASE_URL"]
+          failures = []
+
+          def get(path):
+              with urllib.request.urlopen(base + path, timeout=5) as response:
+                  return response.status, response.read().decode()
+
+          def post(path, data):
+              request = urllib.request.Request(
+                  base + path, data=data.encode(), method="POST"
+              )
+              with urllib.request.urlopen(request, timeout=5) as response:
+                  return response.status
+
+          try:
+              status, _ = get("/healthz")
+              assert status == 200, f"/healthz a returnat {status}"
+
+              status, body = get("/readyz")
+              assert status == 200, f"/readyz a returnat {status}"
+              assert "ready" in json.loads(body)["status"]
+
+              status, _ = get("/")
+              assert status == 200, f"/ a returnat {status}"
+
+              status, body = get("/api/tasks")
+              before = len(json.loads(body)["tasks"])
+
+              post("/add", "task=pipeline+smoke+test")
+              _, body = get("/api/tasks")
+              after = json.loads(body)["tasks"]
+              assert len(after) == before + 1, "taskul adaugat nu apare in lista"
+
+              new_id = [t["id"] for t in after if t["text"] == "pipeline smoke test"]
+              assert new_id, "taskul nou nu a fost gasit dupa adaugare"
+
+              with urllib.request.urlopen(base + "/delete/" + new_id[0], timeout=5):
+                  pass
+
+              _, body = get("/metrics")
+              assert "todo_http_requests_total" in body, "/metrics nu expune seria asteptata"
+          except Exception as error:
+              failures.append(str(error))
+
+          if failures:
+              for failure in failures:
+                  print("FAIL:", failure, file=sys.stderr)
+              sys.exit(1)
+
+          print("OK: liveness, readiness, CRUD si /metrics")
+      resources:
+        requests:
+          cpu: 25m
+          memory: 32Mi
+        limits:
+          cpu: 200m
+          memory: 128Mi
